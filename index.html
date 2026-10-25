@@ -120,7 +120,7 @@
   <div class="frame"><div class="ranks" id="ranks"></div><div class="board" id="board"></div><div class="files" id="files"></div></div>
   <div class="status" id="status"></div>
   <div class="tray">
-    <div class="diamond" id="tray" role="button" aria-label="Queen: drag it under a piece"></div>
+    <div class="diamond" id="tray" role="button" aria-label="Queen: drag it under an envelope"></div>
     <button class="keybtn" id="keyBtn" type="button" aria-label="Hide the queen">
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2a1a08" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="7" cy="12" r="4"/><circle cx="7" cy="12" r="1.2" fill="#2a1a08"/>
@@ -129,11 +129,6 @@
     </button>
   </div>
   <div class="bottom">
-    <button class="round" id="designBtn" type="button" aria-label="Change design">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8a611a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <polygon points="12,3 21,8 12,13 3,8"/><polyline points="3,12.5 12,17.5 21,12.5"/><polyline points="3,17 12,22 21,17"/>
-      </svg>
-    </button>
     <button class="round" id="restart" type="button" aria-label="Restart">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8a611a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M4 12a8 8 0 1 0 2.4-5.7"/><polyline points="4,3 4,8 9,8"/>
@@ -163,40 +158,21 @@
   tray.innerHTML = GEM; ghost.innerHTML = GEM;
 
 
-  // ---- Designs: draw(on) returns the SVG. on = bit 1, off = bit 0 ----
+  // ---- Envelopes: heart seal = bit 1, round seal = bit 0 ----
   var DESIGNS = {
-    cups: { name: 'Cups', draw: function (on) {
-      return '<svg viewBox="0 0 40 40"><g transform="translate(20,21)">' +
-        (on ? '<path d="M11 -8 Q20 -6 18 2 Q16 7 11 5" stroke="#d08443" stroke-width="3" fill="none"/>'
-            : '<path d="M-11 -8 Q-20 -6 -18 2 Q-16 7 -11 5" stroke="#d08443" stroke-width="3" fill="none"/>') +
-        '<path d="M-9 -14 L9 -14 L13 11 L-13 11 Z" fill="#d4883f"/><path d="M-4 -14 L-1 -14 L-1 11 L-6 11 Z" fill="#f0ac6a"/>' +
-        '<rect x="-16" y="9" width="32" height="5" rx="2" fill="#9a5420"/></g></svg>'; } },
-    hats: { name: 'Magic hats', draw: function (on) {
-      return '<svg viewBox="0 0 40 40"><g transform="translate(20,21)">' +
-        '<rect x="-11" y="-17" width="22" height="25" rx="2" fill="#222222"/><rect x="-11" y="2" width="22" height="4" fill="#c0392b"/>' +
-        (on ? '<circle cx="6" cy="4" r="1.5" fill="#ffffff"/>' : '') +
-        '<ellipse cx="0" cy="9" rx="18" ry="5" fill="#222222"/></g></svg>'; } },
     envelopes: { name: 'Envelopes', draw: function (on) {
       return '<svg viewBox="0 0 40 40"><g transform="translate(20,20)">' +
         '<rect x="-17" y="-12" width="34" height="24" rx="2" fill="#efe4c9"/><path d="M-17 -12 L0 3 L17 -12" stroke="#b9a582" stroke-width="1.5" fill="none"/>' +
         (on ? '<path d="M0 8 L-4.5 3 A2.5 2.5 0 0 1 0 0 A2.5 2.5 0 0 1 4.5 3 Z" fill="#c0392b"/>'
-            : '<circle cx="0" cy="3" r="4" fill="#c0392b"/>') + '</g></svg>'; } },
-    pots: { name: 'Flower pots', draw: function (on) {
-      return '<svg viewBox="0 0 40 40"><g transform="translate(20,24)">' +
-        '<path d="M0 -8 L0 -20" stroke="#5cc27a" stroke-width="2" fill="none"/>' +
-        '<ellipse cx="-5" cy="-16" rx="5" ry="2.5" transform="rotate(-25 -5 -16)" fill="#5cc27a"/>' +
-        (on ? '<ellipse cx="5" cy="-12" rx="5" ry="2.5" transform="rotate(25 5 -12)" fill="#5cc27a"/>' : '') +
-        '<path d="M-12 -6 L12 -6 L9 13 L-9 13 Z" fill="#c4622d"/><rect x="-14" y="-10" width="28" height="6" rx="2" fill="#a9501f"/></g></svg>'; } }
+            : '<circle cx="0" cy="3" r="4" fill="#c0392b"/>') + '</g></svg>'; } }
   };
-  var ORDER = ['cups', 'hats', 'envelopes', 'pots'];
-  var design = 'cups';
-  try { var saved = localStorage.getItem('design'); if (DESIGNS[saved]) design = saved; } catch (e) {}
+  var design = 'envelopes';
 
   // ---- State ----
-  var gold = [];          // true = bit 1 version, false = bit 0 version of the piece
-  var key = null;         // index 0..63 of the cup hiding the diamond
+  var gold = [];          // true = heart seal (bit 1), false = round seal (bit 0)
+  var key = null;         // index 0..63 of the envelope hiding the queen
   var phase = 'setup';    // setup | locking | guess | reveal
-  var opened = {};        // cups lifted during the guess
+  var opened = {};        // envelopes lifted during the guess
   var cells = [];
 
   // The board "points" to the XOR of the indices of all pieces in their "1" version.
@@ -283,15 +259,6 @@
 
   keyBtn.addEventListener('click', lockIn);
   restartBtn.addEventListener('click', newGame);
-  document.getElementById('designBtn').addEventListener('click', function () {
-    design = ORDER[(ORDER.indexOf(design) + 1) % ORDER.length];
-    try { localStorage.setItem('design', design); } catch (e) {}
-    render();
-    if (phase === 'setup') {
-      setStatus(DESIGNS[design].name);
-      clearTimeout(window.__dt); window.__dt = setTimeout(function () { if (phase === 'setup') setStatus(''); }, 1200);
-    }
-  });
 
   // ---- Taps and drags ----
   var drag = null, suppressUntil = 0, hoverCell = null;

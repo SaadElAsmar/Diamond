@@ -1,6 +1,6 @@
 // Offline support. When you change any file, bump the version below
 // (diamond-v2, diamond-v3, ...) so phones pick up the new version.
-var CACHE = 'diamond-v5';
+var CACHE = 'diamond-v6';
 var FILES = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {

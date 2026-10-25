@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#f3e8d0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Diamond">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<title>Diamond</title>
+<style>
+  :root { --ink: #3a2a14; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: linear-gradient(180deg, #fdf9ef 0%, #f3e8d0 100%);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center;
+    overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  .app {
+    width: 100%; max-width: 440px; min-height: 100%;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    padding: calc(env(safe-area-inset-top) + 48px) 12px calc(env(safe-area-inset-bottom) + 28px);
+  }
+
+  /* Board */
+  .frame {
+    width: min(94vw, 416px); padding: 10px; border-radius: 14px;
+    background: linear-gradient(145deg, #d9b679, #b08a4f);
+    box-shadow: 0 10px 24px rgba(120,90,40,0.25), inset 0 0 0 2px #e9d3a2;
+  }
+  .board {
+    display: grid; grid-template-columns: repeat(8, 1fr); aspect-ratio: 1;
+    border-radius: 4px; touch-action: none;
+    background: repeating-conic-gradient(#ead7a8 0 25%, #d8bf87 0 50%) 0 0 / 25% 25%;
+  }
+  .cell {
+    border: 0; background: transparent; padding: 0; margin: 0; aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; cursor: pointer;
+  }
+
+  /* Chest */
+  .chest {
+    position: relative; width: 34px; height: 30px; pointer-events: none;
+    transform: scale(var(--k, 1)); transition: transform .15s;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.4));
+  }
+  .lid  { position: absolute; left: 0; top: 0; width: 34px; height: 12px; border-radius: 12px 12px 2px 2px;
+          transform-origin: 50% 100%; transition: transform .35s ease; z-index: 1; }
+  .bod  { position: absolute; left: 0; top: 12px; width: 34px; height: 17px; border-radius: 0 0 3px 3px; }
+  .lock { position: absolute; left: 13.5px; top: 9px; width: 7px; height: 8px; border-radius: 2px; z-index: 3; transition: opacity .2s; }
+  .gem  { position: absolute; left: 7px; top: 0; width: 20px; height: 16px; z-index: 2;
+          opacity: 0; transform: translateY(5px); transition: opacity .25s, transform .25s; }
+
+  .gold .lid  { background: linear-gradient(90deg, #e9b949 0 40%, #8a611a 40% 60%, #e9b949 60%);
+                box-shadow: inset 0 3px 3px rgba(255,240,190,0.6); }
+  .gold .bod  { background: linear-gradient(180deg, #8a611a 0 3px, #d9a636 3px); }
+  .gold .lock { background: #b3261e; box-shadow: 0 0 0 1px #6b4510; }
+  .gold .bod::before, .gold .bod::after { content: ""; position: absolute; top: 8px; width: 4px; height: 4px; border-radius: 50%; }
+  .gold .bod::before { left: 4px; background: #2fa36b; }
+  .gold .bod::after  { right: 4px; background: #2f7fd1; }
+
+  .wood .lid  { background: linear-gradient(90deg, #6e4020 0 22%, #2f3036 22% 32%, #6e4020 32% 68%, #2f3036 68% 78%, #6e4020 78%); }
+  .wood .bod  { background: linear-gradient(90deg, #5a3318 0 22%, #2f3036 22% 32%, #5a3318 32% 68%, #2f3036 68% 78%, #5a3318 78%);
+                box-shadow: inset 0 3px 0 #2f3036; }
+  .wood .lock { background: #c9962e; box-shadow: 0 0 0 1px #3a2410; }
+
+  .cell.open .lid  { transform: translateY(-10px) scaleY(-0.7); }
+  .cell.open .lock { opacity: 0; }
+  .cell.has .gem   { opacity: 1; transform: none; }
+  .cell.open::before {
+    content: ""; position: absolute; inset: 4%; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,214,110,0.8), rgba(255,214,110,0) 65%);
+  }
+  .cell.empty::before { background: radial-gradient(circle, rgba(60,40,20,0.18), rgba(60,40,20,0) 65%); }
+  .cell.hover .chest { transform: scale(calc(var(--k, 1) * 1.15)); }
+
+  /* Diamond tray + key */
+  .tray { height: 64px; display: flex; align-items: center; justify-content: center; gap: 36px; }
+  .diamond {
+    width: 56px; height: 56px; border-radius: 50%; touch-action: none; cursor: grab;
+    background: radial-gradient(circle, rgba(120,200,240,0.35), rgba(120,200,240,0) 70%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .diamond svg { width: 28px; height: 22px; }
+  .diamond.gone { display: none; }
+
+  .keybtn {
+    display: none; width: 56px; height: 56px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+    background: linear-gradient(180deg, #f6dc94, #d4a441);
+    align-items: center; justify-content: center;
+  }
+  .keybtn.show { display: flex; animation: keyIn .55s cubic-bezier(.34,1.56,.64,1) both, keyGlow 2.4s ease-in-out .55s infinite; }
+  .keybtn svg { transform-origin: 7px 12px; animation: keyTurn 2.4s ease-in-out infinite; }
+  @keyframes keyIn   { 0% { opacity: 0; transform: translateY(-24px) scale(.3) rotate(-120deg); } 100% { opacity: 1; transform: none; } }
+  @keyframes keyGlow { 0%,100% { box-shadow: 0 4px 10px rgba(120,90,40,0.3), 0 0 0 0 rgba(233,185,73,0.55); }
+                       50%     { box-shadow: 0 4px 10px rgba(120,90,40,0.3), 0 0 0 12px rgba(233,185,73,0); } }
+  @keyframes keyTurn { 0%,60%,100% { transform: rotate(0) translateX(0); } 70% { transform: rotate(0) translateX(3px); }
+                       82% { transform: rotate(-90deg) translateX(3px); } 92% { transform: rotate(0) translateX(0); } }
+
+  .status { min-height: 24px; font-size: 18px; font-weight: 700; text-align: center; }
+
+  .bottom { margin-top: auto; display: flex; gap: 20px; }
+  .round {
+    width: 48px; height: 48px; border-radius: 50%; border: 1px solid #c9a46a; background: #fff; padding: 0;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+
+  .cell.zone::after {
+    content: ""; position: absolute; inset: 2px; border-radius: 6px; pointer-events: none;
+    background: rgba(30,111,217,0.12); box-shadow: inset 0 0 0 2px rgba(30,111,217,0.85);
+  }
+  .round.on { background: #f6dc94; border-color: #d4a441; }
+  .status small { display: block; font-size: 14px; font-weight: 400; opacity: .75; margin-top: 2px; }
+
+  .ghost {
+    position: fixed; left: 0; top: 0; width: 36px; height: 29px; z-index: 50; pointer-events: none; display: none;
+    filter: drop-shadow(0 6px 6px rgba(0,0,0,0.25));
+  }
+
+  .cover {
+    position: fixed; inset: 0; z-index: 40; display: none;
+    background: linear-gradient(180deg, #fdf9ef 0%, #f3e8d0 100%);
+    flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  }
+  .cover.show { display: flex; }
+  .cover b { font-size: 26px; }
+  .cover span { font-size: 15px; opacity: .7; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .keybtn.show, .keybtn svg { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="frame"><div class="board" id="board"></div></div>
+  <div class="status" id="status"></div>
+  <div class="tray">
+    <div class="diamond" id="tray" role="button" aria-label="Diamond: drag it into a chest"></div>
+    <button class="keybtn" id="keyBtn" type="button" aria-label="Lock the diamond in">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2a1a08" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="7" cy="12" r="4"/><circle cx="7" cy="12" r="1.2" fill="#2a1a08"/>
+        <line x1="11" y1="12" x2="21" y2="12"/><line x1="17" y1="12" x2="17" y2="15.5"/><line x1="20" y1="12" x2="20" y2="16"/>
+      </svg>
+    </button>
+  </div>
+  <div class="bottom">
+    <button class="round" id="practiceBtn" type="button" aria-label="Practice mode">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8a611a" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#8a611a"/>
+      </svg>
+    </button>
+    <button class="round" id="restart" type="button" aria-label="Restart">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8a611a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 12a8 8 0 1 0 2.4-5.7"/><polyline points="4,3 4,8 9,8"/>
+      </svg>
+    </button>
+    <button class="round" id="hintBtn" type="button" aria-label="Show the next zone" style="display:none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8a611a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div class="ghost" id="ghost"></div>
+<div class="cover" id="cover"><div id="coverGem" style="width:56px;height:45px"></div><b>Ready</b><span>Tap to look</span></div>
+
+<script>
+(function () {
+  var GEM = '<svg viewBox="0 0 20 16" width="100%" height="100%" aria-hidden="true">' +
+    '<polygon points="4,1 16,1 19,5 10,15 1,5" fill="#9fe3ff" stroke="#3d8fb5" stroke-width="0.8"/>' +
+    '<polyline points="1,5 19,5" stroke="#3d8fb5" stroke-width="0.8" fill="none"/>' +
+    '<polyline points="7,1 6,5 10,15 14,5 13,1" stroke="#3d8fb5" stroke-width="0.5" fill="none"/></svg>';
+
+  var board = document.getElementById('board');
+  var tray = document.getElementById('tray');
+  var keyBtn = document.getElementById('keyBtn');
+  var restartBtn = document.getElementById('restart');
+  var statusEl = document.getElementById('status');
+  var ghost = document.getElementById('ghost');
+  var cover = document.getElementById('cover');
+  tray.innerHTML = GEM; ghost.innerHTML = GEM;
+  document.getElementById('coverGem').innerHTML = GEM;
+
+  // ---- State ----
+  var gold = [];          // true = gold chest (bit 1), false = wooden chest (bit 0)
+  var key = null;         // index 0..63 of the chest holding the diamond
+  var phase = 'setup';    // setup | locking | cover | guess | reveal
+  var opened = {};        // chests opened during the guess
+  var cells = [];
+  var mode = 'game';      // game | practice
+  var hintStep = 0, usedHint = false, t0 = 0, streak = 0;
+  var practiceBtn = document.getElementById('practiceBtn');
+  var hintBtn = document.getElementById('hintBtn');
+
+  // The six fixed zones (counted on the whole board, gold chests only)
+  var ZONES = [
+    { label: 'Columns E–H',      f: function (r, c) { return c >= 4; } },
+    { label: 'Columns C D G H',  f: function (r, c) { return (c & 2) > 0; } },
+    { label: 'Columns B D F H',  f: function (r, c) { return (c & 1) > 0; } },
+    { label: 'Rows e–h',         f: function (r, c) { return r >= 4; } },
+    { label: 'Rows c d g h',     f: function (r, c) { return (r & 2) > 0; } },
+    { label: 'Rows b d f h',     f: function (r, c) { return (r & 1) > 0; } }
+  ];
+  function inZone(z, i) { return ZONES[z].f(Math.floor(i / 8), i % 8); }
+  function zoneCount(z) { var n = 0; for (var i = 0; i < 64; i++) if (gold[i] && inZone(z, i)) n++; return n; }
+  function name(i) { return 'ABCDEFGH'[i % 8] + ' ' + 'abcdefgh'[Math.floor(i / 8)]; }
+
+  // The board "points" to the XOR of the indices of all gold chests.
+  function pointer() {
+    var x = 0;
+    for (var i = 0; i < 64; i++) if (gold[i]) x ^= i;
+    return x;
+  }
+
+  // ---- Build the board ----
+  for (var i = 0; i < 64; i++) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cell';
+    b.dataset.i = i;
+    b.setAttribute('aria-label', 'Row ' + (Math.floor(i / 8) + 1) + ', column ' + (i % 8 + 1));
+    b.innerHTML = '<div class="chest"><div class="lid"></div><div class="bod"></div><div class="lock"></div><div class="gem">' + GEM + '</div></div>';
+    board.appendChild(b);
+    cells.push(b);
+  }
+
+  function fit() {
+    var w = cells[0].getBoundingClientRect().width;
+    board.style.setProperty('--k', (w / 42).toFixed(3));
+  }
+  window.addEventListener('resize', fit);
+
+  // ---- Render ----
+  function render() {
+    for (var i = 0; i < 64; i++) {
+      var c = cells[i], chest = c.firstChild;
+      chest.className = 'chest ' + (gold[i] ? 'gold' : 'wood');
+      var isOpen = (phase === 'setup' && i === key) || !!opened[i];
+      var hasGem = i === key && (phase === 'setup' || !!opened[i]);
+      c.classList.toggle('open', isOpen);
+      c.classList.toggle('has', hasGem);
+      c.classList.toggle('empty', !!opened[i] && i !== key);
+      c.classList.toggle('zone', mode === 'practice' && phase === 'guess' && hintStep >= 1 && hintStep <= 6 && inZone(hintStep - 1, i));
+    }
+    tray.classList.toggle('gone', !(mode === 'game' && phase === 'setup' && key === null));
+    var wantKey = mode === 'game' && phase === 'setup' && key !== null;
+    if (wantKey !== keyBtn.classList.contains('show')) keyBtn.classList.toggle('show', wantKey);
+  }
+
+  function setStatus(t, sub) {
+    statusEl.textContent = t;
+    if (sub) { var s = document.createElement('small'); s.textContent = sub; statusEl.appendChild(s); }
+  }
+
+  // ---- Game actions ----
+  function newGame() {
+    if (mode === 'practice') { newPractice(); return; }
+    gold = [];
+    for (var i = 0; i < 64; i++) gold.push(Math.random() < 0.5);
+    key = null; phase = 'setup'; opened = {};
+    cover.classList.remove('show');
+    setStatus('');
+    render();
+  }
+
+  // ---- Practice: read the board, tap where it points ----
+  function newPractice() {
+    gold = [];
+    for (var i = 0; i < 64; i++) gold.push(Math.random() < 0.5);
+    key = pointer(); phase = 'guess'; opened = {};
+    hintStep = 0; usedHint = false; t0 = Date.now();
+    cover.classList.remove('show');
+    setStatus('Where does the board point?', streak ? 'Streak: ' + streak : 'Tap the chest');
+    render();
+  }
+
+  function practiceAnswer(i) {
+    var secs = ((Date.now() - t0) / 1000).toFixed(1);
+    opened[i] = true; opened[key] = true; phase = 'reveal'; hintStep = 0;
+    if (i === key) {
+      if (!usedHint) streak++;
+      setStatus('✓ Right! ' + secs + ' s', usedHint ? 'With hints · tap the board for the next one' : 'Streak: ' + streak + ' · tap the board for the next one');
+    } else {
+      streak = 0;
+      setStatus('✗ It was ' + name(key), 'You chose ' + name(i) + ' · tap the board for the next one');
+    }
+    render();
+  }
+
+  function nextHint() {
+    if (mode !== 'practice' || phase !== 'guess') return;
+    usedHint = true;
+    hintStep = hintStep >= 7 ? 1 : hintStep + 1;
+    if (hintStep <= 6) {
+      var n = zoneCount(hintStep - 1);
+      setStatus(ZONES[hintStep - 1].label + ': ' + n + ' gold', n % 2 ? 'odd → 1 (inside)' : 'even → 0 (outside)');
+    } else {
+      setStatus('The board points to ' + name(key), 'Tap it to check');
+    }
+    render();
+  }
+
+  function togglePractice() {
+    mode = mode === 'game' ? 'practice' : 'game';
+    practiceBtn.classList.toggle('on', mode === 'practice');
+    hintBtn.style.display = mode === 'practice' ? 'flex' : 'none';
+    streak = 0;
+    newGame();
+  }
+
+  function lockIn() {
+    if (phase !== 'setup' || key === null) return;
+    phase = 'locking';
+    render();                       // the lid closes on the diamond...
+    var t = pointer() ^ key;        // ...and, while all eyes are on it, one chest swaps.
+    gold[t] = !gold[t];
+    render();
+    setTimeout(function () { phase = 'cover'; cover.classList.add('show'); }, 900);
+  }
+
+  function guess(i) {
+    if (phase !== 'guess' || opened[i]) return;
+    opened[i] = true;
+    if (i === key) {
+      phase = 'reveal'; setStatus('Found it!'); render();
+    } else {
+      phase = 'reveal'; setStatus('Not here…'); render();
+      setTimeout(function () { opened[key] = true; setStatus('It was here'); render(); }, 900);
+    }
+  }
+
+  cover.addEventListener('click', function () {
+    if (phase !== 'cover') return;
+    cover.classList.remove('show');
+    phase = 'guess'; setStatus('');
+    render();
+  });
+  keyBtn.addEventListener('click', lockIn);
+  practiceBtn.addEventListener('click', togglePractice);
+  hintBtn.addEventListener('click', nextHint);
+  restartBtn.addEventListener('click', newGame);
+
+  // ---- Taps and drags ----
+  var drag = null, suppressUntil = 0, hoverCell = null;
+
+  function cellAt(x, y) {
+    var el = document.elementFromPoint(x, y);
+    while (el && el !== document.body) {
+      if (el.classList && el.classList.contains('cell')) return el;
+      el = el.parentNode;
+    }
+    return null;
+  }
+  function moveGhost(x, y) {
+    ghost.style.transform = 'translate(' + (x - 18) + 'px,' + (y - 36) + 'px)';
+  }
+  function setHover(c) {
+    if (hoverCell === c) return;
+    if (hoverCell) hoverCell.classList.remove('hover');
+    hoverCell = c;
+    if (hoverCell) hoverCell.classList.add('hover');
+  }
+
+  function startDrag(e, from) {
+    if (phase !== 'setup') return;
+    drag = { from: from, x0: e.clientX, y0: e.clientY, moved: false };
+    e.preventDefault();
+  }
+
+  tray.addEventListener('pointerdown', function (e) { startDrag(e, 'tray'); });
+
+  board.addEventListener('pointerdown', function (e) {
+    var c = cellAt(e.clientX, e.clientY);
+    if (c && phase === 'setup' && +c.dataset.i === key) startDrag(e, 'chest');
+  });
+
+  document.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 8) {
+      drag.moved = true;
+      if (drag.from === 'chest') { key = null; }
+      tray.classList.add('gone');
+      keyBtn.classList.remove('show');
+      render();
+      tray.classList.add('gone');
+      ghost.style.display = 'block';
+    }
+    if (drag.moved) {
+      moveGhost(e.clientX, e.clientY);
+      setHover(cellAt(e.clientX, e.clientY));
+    }
+  });
+
+  function endDrag(e) {
+    if (!drag) return;
+    var d = drag; drag = null;
+    suppressUntil = Date.now() + 400;
+    ghost.style.display = 'none';
+    setHover(null);
+    if (d.moved) {
+      var c = e ? cellAt(e.clientX, e.clientY) : null;
+      key = c ? +c.dataset.i : null;
+    } else if (d.from === 'chest') {
+      key = null;                     // a simple tap on the open chest takes the diamond back
+    }
+    render();
+  }
+  document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', function () { endDrag(null); });
+
+  board.addEventListener('click', function (e) {
+    if (Date.now() < suppressUntil) return;
+    var c = cellAt(e.clientX, e.clientY);
+    if (!c) return;
+    var i = +c.dataset.i;
+    if (mode === 'practice') {
+      if (phase === 'guess') practiceAnswer(i);
+      else if (phase === 'reveal') newPractice();
+      return;
+    }
+    if (phase === 'setup' && key === null) { key = i; render(); }
+    else if (phase === 'guess') guess(i);
+  });
+
+  // ---- Start ----
+  newGame();
+  fit();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js'); });
+  }
+})();
+</script>
+</body>
+</html>

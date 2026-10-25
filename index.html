@@ -121,6 +121,20 @@
   .round.on { background: #f6dc94; border-color: #d4a441; }
   .status small { display: block; font-size: 14px; font-weight: 400; opacity: .75; margin-top: 2px; }
 
+  .lamps { display: none; gap: 22px; align-items: flex-start; }
+  .lamps.show { display: flex; }
+  .lgroup { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .lrow { display: flex; gap: 8px; }
+  .lgroup span { font-size: 11px; letter-spacing: 1px; opacity: .55; }
+  .lamp {
+    width: 30px; height: 30px; border-radius: 50%; padding: 0; cursor: pointer;
+    border: 1px solid #c9a46a; background: #efe4c9; transition: background .15s, box-shadow .15s;
+  }
+  .lamp.on {
+    background: radial-gradient(circle at 40% 35%, #fff6c8, #f2c94c 55%, #d4a441);
+    box-shadow: 0 0 10px 3px rgba(242,201,76,0.7);
+  }
+
   .ghost {
     position: fixed; left: 0; top: 0; width: 36px; height: 29px; z-index: 50; pointer-events: none; display: none;
     filter: drop-shadow(0 6px 6px rgba(0,0,0,0.25));
@@ -144,6 +158,18 @@
 <div class="app">
   <div class="frame"><div class="board" id="board"></div></div>
   <div class="status" id="status"></div>
+  <div class="lamps" id="lamps">
+    <div class="lgroup"><div class="lrow">
+      <button class="lamp" type="button" aria-label="Column lamp 1"></button>
+      <button class="lamp" type="button" aria-label="Column lamp 2"></button>
+      <button class="lamp" type="button" aria-label="Column lamp 3"></button>
+    </div><span>COL</span></div>
+    <div class="lgroup"><div class="lrow">
+      <button class="lamp" type="button" aria-label="Row lamp 1"></button>
+      <button class="lamp" type="button" aria-label="Row lamp 2"></button>
+      <button class="lamp" type="button" aria-label="Row lamp 3"></button>
+    </div><span>ROW</span></div>
+  </div>
   <div class="tray">
     <div class="diamond" id="tray" role="button" aria-label="Diamond: drag it into a chest"></div>
     <button class="keybtn" id="keyBtn" type="button" aria-label="Lock the diamond in">
@@ -201,6 +227,10 @@
   var mode = 'game';      // game | practice
   var hintStep = 0, usedHint = false, t0 = 0, streak = 0;
   var practiceBtn = document.getElementById('practiceBtn');
+  var lampsEl = document.getElementById('lamps');
+  var lamps = Array.prototype.slice.call(document.querySelectorAll('.lamp'));
+  lamps.forEach(function (l) { l.addEventListener('click', function () { l.classList.toggle('on'); }); });
+  function clearLamps() { lamps.forEach(function (l) { l.classList.remove('on'); }); }
   var hintBtn = document.getElementById('hintBtn');
 
   // The six fixed zones (counted on the whole board, gold chests only)
@@ -254,6 +284,7 @@
       c.classList.toggle('zone', mode === 'practice' && phase === 'guess' && hintStep >= 1 && hintStep <= 6 && inZone(hintStep - 1, i));
     }
     tray.classList.toggle('gone', !(mode === 'game' && phase === 'setup' && key === null));
+    lampsEl.classList.toggle('show', phase === 'guess' || (mode === 'practice' && phase === 'reveal'));
     var wantKey = mode === 'game' && phase === 'setup' && key !== null;
     if (wantKey !== keyBtn.classList.contains('show')) keyBtn.classList.toggle('show', wantKey);
   }
@@ -268,7 +299,7 @@
     if (mode === 'practice') { newPractice(); return; }
     gold = [];
     for (var i = 0; i < 64; i++) gold.push(Math.random() < 0.5);
-    key = null; phase = 'setup'; opened = {};
+    key = null; phase = 'setup'; opened = {}; clearLamps();
     cover.classList.remove('show');
     setStatus('');
     render();
@@ -278,7 +309,7 @@
   function newPractice() {
     gold = [];
     for (var i = 0; i < 64; i++) gold.push(Math.random() < 0.5);
-    key = pointer(); phase = 'guess'; opened = {};
+    key = pointer(); phase = 'guess'; opened = {}; clearLamps();
     hintStep = 0; usedHint = false; t0 = Date.now();
     cover.classList.remove('show');
     setStatus('Where does the board point?', streak ? 'Streak: ' + streak : 'Tap the chest');

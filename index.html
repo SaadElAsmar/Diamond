@@ -36,61 +36,56 @@
     background: linear-gradient(145deg, #d9b679, #b08a4f);
     box-shadow: 0 10px 24px rgba(120,90,40,0.25), inset 0 0 0 2px #e9d3a2;
   }
+  .frame { display: grid; grid-template-columns: 14px 1fr; grid-template-rows: 1fr 14px; gap: 4px; }
   .board {
     display: grid; grid-template-columns: repeat(8, 1fr); aspect-ratio: 1;
-    border-radius: 4px; touch-action: none;
-    background: repeating-conic-gradient(#ead7a8 0 25%, #d8bf87 0 50%) 0 0 / 25% 25%;
+    gap: 2px; padding: 2px; border-radius: 4px; touch-action: none;
+    background: #1c3d2e;
   }
+  .ranks, .files { display: grid; gap: 2px; font-size: 12px; font-weight: 700; color: #5a3d16;
+                   align-items: center; justify-items: center; }
+  .ranks { grid-template-rows: repeat(8, 1fr); padding: 2px 0; }
+  .files { grid-template-columns: repeat(8, 1fr); padding: 0 2px; grid-column: 2; }
   .cell {
     border: 0; background: transparent; padding: 0; margin: 0; aspect-ratio: 1;
     display: flex; align-items: center; justify-content: center;
-    position: relative; cursor: pointer;
+    position: relative; cursor: pointer; background: #2d5b45; border-radius: 2px;
   }
 
-  /* Chest */
-  .chest {
-    position: relative; width: 34px; height: 30px; pointer-events: none;
+  /* Cup (upside down). Handle right = 1, handle left = 0 */
+  .cup {
+    position: relative; width: 34px; height: 34px; pointer-events: none;
     transform: scale(var(--k, 1)); transition: transform .15s;
-    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.4));
   }
-  .lid  { position: absolute; left: 0; top: 0; width: 34px; height: 12px; border-radius: 12px 12px 2px 2px;
-          transform-origin: 50% 100%; transition: transform .35s ease; z-index: 1; }
-  .bod  { position: absolute; left: 0; top: 12px; width: 34px; height: 17px; border-radius: 0 0 3px 3px; }
-  .lock { position: absolute; left: 13.5px; top: 9px; width: 7px; height: 8px; border-radius: 2px; z-index: 3; transition: opacity .2s; }
-  .gem  { position: absolute; left: 7px; top: 0; width: 20px; height: 16px; z-index: 2;
-          opacity: 0; transform: translateY(5px); transition: opacity .25s, transform .25s; }
+  .shell { position: absolute; inset: 0; transition: transform .35s ease; z-index: 2;
+           filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35)); }
+  .body  { position: absolute; left: 7px; top: 3px; width: 20px; height: 24px;
+           clip-path: polygon(15% 0, 85% 0, 100% 100%, 0 100%);
+           background: linear-gradient(90deg, #b8692e 0%, #f0ac6a 38%, #d4883f 62%, #9a5420 100%); }
+  .rim   { position: absolute; left: 4px; top: 25px; width: 26px; height: 5px; border-radius: 2px; background: #9a5420; }
+  .handle { position: absolute; top: 8px; width: 9px; height: 12px; border: 3px solid #d08443; border-radius: 50%; }
+  .cup.l .handle { left: 1px;  border-right-color: transparent; }
+  .cup.r .handle { right: 1px; border-left-color: transparent; }
+  .gem  { position: absolute; left: 9px; top: 8px; width: 16px; height: 21px; z-index: 1;
+          opacity: 0; transition: opacity .25s; }
 
-  .gold .lid  { background: linear-gradient(90deg, #e9b949 0 40%, #8a611a 40% 60%, #e9b949 60%);
-                box-shadow: inset 0 3px 3px rgba(255,240,190,0.6); }
-  .gold .bod  { background: linear-gradient(180deg, #8a611a 0 3px, #d9a636 3px); }
-  .gold .lock { background: #b3261e; box-shadow: 0 0 0 1px #6b4510; }
-  .gold .bod::before, .gold .bod::after { content: ""; position: absolute; top: 8px; width: 4px; height: 4px; border-radius: 50%; }
-  .gold .bod::before { left: 4px; background: #2fa36b; }
-  .gold .bod::after  { right: 4px; background: #2f7fd1; }
-
-  .wood .lid  { background: linear-gradient(90deg, #6e4020 0 22%, #2f3036 22% 32%, #6e4020 32% 68%, #2f3036 68% 78%, #6e4020 78%); }
-  .wood .bod  { background: linear-gradient(90deg, #5a3318 0 22%, #2f3036 22% 32%, #5a3318 32% 68%, #2f3036 68% 78%, #5a3318 78%);
-                box-shadow: inset 0 3px 0 #2f3036; }
-  .wood .lock { background: #c9962e; box-shadow: 0 0 0 1px #3a2410; }
-
-  .cell.open .lid  { transform: translateY(-10px) scaleY(-0.7); }
-  .cell.open .lock { opacity: 0; }
-  .cell.has .gem   { opacity: 1; transform: none; }
+  .cell.open .shell { transform: translateY(-24px) rotate(-10deg); }
+  .cell.has .gem    { opacity: 1; }
   .cell.open::before {
     content: ""; position: absolute; inset: 4%; border-radius: 50%;
     background: radial-gradient(circle, rgba(255,214,110,0.8), rgba(255,214,110,0) 65%);
   }
-  .cell.empty::before { background: radial-gradient(circle, rgba(60,40,20,0.18), rgba(60,40,20,0) 65%); }
-  .cell.hover .chest { transform: scale(calc(var(--k, 1) * 1.15)); }
+  .cell.empty::before { background: radial-gradient(circle, rgba(0,0,0,0.25), rgba(0,0,0,0) 65%); }
+  .cell.hover .cup { transform: scale(calc(var(--k, 1) * 1.15)); }
 
   /* Diamond tray + key */
   .tray { height: 64px; display: flex; align-items: center; justify-content: center; gap: 36px; }
   .diamond {
-    width: 56px; height: 56px; border-radius: 50%; touch-action: none; cursor: grab;
-    background: radial-gradient(circle, rgba(120,200,240,0.35), rgba(120,200,240,0) 70%);
+    width: 64px; height: 64px; border-radius: 50%; touch-action: none; cursor: grab;
+    background: radial-gradient(circle, rgba(242,201,76,0.35), rgba(242,201,76,0) 70%);
     display: flex; align-items: center; justify-content: center;
   }
-  .diamond svg { width: 28px; height: 22px; }
+  .diamond svg { width: 32px; height: 42px; }
   .diamond.gone { display: none; }
 
   .keybtn {
@@ -116,30 +111,10 @@
 
   .status small { display: block; font-size: 14px; font-weight: 400; opacity: .75; margin-top: 2px; }
 
-  .lamps { display: none; gap: 22px; align-items: flex-start; }
-  .lamps.show { display: flex; }
-  .lgroup { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .lrow { display: flex; gap: 8px; }
-  .lamp { width: 32px; height: 40px; border: 0; background: transparent; padding: 0; cursor: pointer; }
-  .lamp svg { width: 32px; height: 40px; transition: filter .15s; }
-  .lamp .glass { fill: #efe4c9; stroke: #c9a46a; stroke-width: 1.2; transition: fill .15s; }
-  .lamp .base { fill: #b9a582; }
-  .lamp.on .glass { fill: #ffd84d; stroke: #d4a441; }
-  .lamp.on svg { filter: drop-shadow(0 0 7px rgba(255,200,60,0.95)); }
-
   .ghost {
-    position: fixed; left: 0; top: 0; width: 36px; height: 29px; z-index: 50; pointer-events: none; display: none;
+    position: fixed; left: 0; top: 0; width: 28px; height: 36px; z-index: 50; pointer-events: none; display: none;
     filter: drop-shadow(0 6px 6px rgba(0,0,0,0.25));
   }
-
-  .cover {
-    position: fixed; inset: 0; z-index: 40; display: none;
-    background: linear-gradient(180deg, #fdf9ef 0%, #f3e8d0 100%);
-    flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-  }
-  .cover.show { display: flex; }
-  .cover b { font-size: 26px; }
-  .cover span { font-size: 15px; opacity: .7; }
 
   @media (prefers-reduced-motion: reduce) {
     .keybtn.show, .keybtn svg { animation: none; }
@@ -148,23 +123,11 @@
 </head>
 <body>
 <div class="app">
-  <div class="frame"><div class="board" id="board"></div></div>
+  <div class="frame"><div class="ranks" id="ranks"></div><div class="board" id="board"></div><div class="files" id="files"></div></div>
   <div class="status" id="status"></div>
-  <div class="lamps" id="lamps">
-    <div class="lgroup"><div class="lrow">
-      <button class="lamp" type="button" aria-label="Lamp 1"></button>
-      <button class="lamp" type="button" aria-label="Lamp 2"></button>
-      <button class="lamp" type="button" aria-label="Lamp 3"></button>
-    </div></div>
-    <div class="lgroup"><div class="lrow">
-      <button class="lamp" type="button" aria-label="Lamp 1"></button>
-      <button class="lamp" type="button" aria-label="Lamp 2"></button>
-      <button class="lamp" type="button" aria-label="Lamp 3"></button>
-    </div></div>
-  </div>
   <div class="tray">
-    <div class="diamond" id="tray" role="button" aria-label="Diamond: drag it into a chest"></div>
-    <button class="keybtn" id="keyBtn" type="button" aria-label="Lock the diamond in">
+    <div class="diamond" id="tray" role="button" aria-label="Queen: drag it under a cup"></div>
+    <button class="keybtn" id="keyBtn" type="button" aria-label="Hide the queen">
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2a1a08" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="7" cy="12" r="4"/><circle cx="7" cy="12" r="1.2" fill="#2a1a08"/>
         <line x1="11" y1="12" x2="21" y2="12"/><line x1="17" y1="12" x2="17" y2="15.5"/><line x1="20" y1="12" x2="20" y2="16"/>
@@ -181,14 +144,16 @@
 </div>
 
 <div class="ghost" id="ghost"></div>
-<div class="cover" id="cover"><div id="coverGem" style="width:56px;height:45px"></div><b>Ready</b><span>Tap to look</span></div>
 
 <script>
 (function () {
-  var GEM = '<svg viewBox="0 0 20 16" width="100%" height="100%" aria-hidden="true">' +
-    '<polygon points="4,1 16,1 19,5 10,15 1,5" fill="#9fe3ff" stroke="#3d8fb5" stroke-width="0.8"/>' +
-    '<polyline points="1,5 19,5" stroke="#3d8fb5" stroke-width="0.8" fill="none"/>' +
-    '<polyline points="7,1 6,5 10,15 14,5 13,1" stroke="#3d8fb5" stroke-width="0.5" fill="none"/></svg>';
+  var GEM = '<svg viewBox="0 0 20 26" width="100%" height="100%" aria-hidden="true">' +
+    '<g fill="#f6f1e6" stroke="#3a2a14" stroke-width="0.9" stroke-linejoin="round">' +
+    '<circle cx="4.5" cy="2.6" r="1.4"/><circle cx="10" cy="1.6" r="1.4"/><circle cx="15.5" cy="2.6" r="1.4"/>' +
+    '<path d="M3 10 L4.5 4 L7.3 8.5 L10 3 L12.7 8.5 L15.5 4 L17 10 Z"/>' +
+    '<path d="M4 10 Q10 12 16 10 L14 18 L6 18 Z"/>' +
+    '<rect x="5" y="18" width="10" height="2.5" rx="0.8"/>' +
+    '<path d="M3 24.5 L17 24.5 L15.8 20.5 L4.2 20.5 Z"/></g></svg>';
 
   var board = document.getElementById('board');
   var tray = document.getElementById('tray');
@@ -196,28 +161,26 @@
   var restartBtn = document.getElementById('restart');
   var statusEl = document.getElementById('status');
   var ghost = document.getElementById('ghost');
-  var cover = document.getElementById('cover');
   tray.innerHTML = GEM; ghost.innerHTML = GEM;
-  document.getElementById('coverGem').innerHTML = GEM;
 
   // ---- State ----
-  var gold = [];          // true = gold chest (bit 1), false = wooden chest (bit 0)
-  var key = null;         // index 0..63 of the chest holding the diamond
-  var phase = 'setup';    // setup | locking | cover | guess | reveal
-  var opened = {};        // chests opened during the guess
+  var gold = [];          // true = handle right (bit 1), false = handle left (bit 0)
+  var key = null;         // index 0..63 of the cup hiding the diamond
+  var phase = 'setup';    // setup | locking | guess | reveal
+  var opened = {};        // cups lifted during the guess
   var cells = [];
-  var lampsEl = document.getElementById('lamps');
-  var lamps = Array.prototype.slice.call(document.querySelectorAll('.lamp'));
-  var BULB = '<svg viewBox="0 0 24 30" aria-hidden="true"><path class="glass" d="M12 2a8 8 0 0 0-5 14.2c1 .9 1.6 2 1.6 3.3V21h6.8v-1.5c0-1.3.6-2.4 1.6-3.3A8 8 0 0 0 12 2z"/>' +
-    '<rect class="base" x="8.5" y="22" width="7" height="2.4" rx="1"/><rect class="base" x="9.5" y="25.4" width="5" height="2.4" rx="1"/></svg>';
-  lamps.forEach(function (l) { l.innerHTML = BULB; l.addEventListener('click', function () { l.classList.toggle('on'); }); });
-  function clearLamps() { lamps.forEach(function (l) { l.classList.remove('on'); }); }
 
-  // The board "points" to the XOR of the indices of all gold chests.
+  // The board "points" to the XOR of the indices of all cups with the handle on the right.
   function pointer() {
     var x = 0;
     for (var i = 0; i < 64; i++) if (gold[i]) x ^= i;
     return x;
+  }
+
+  // ---- Labels like a chessboard: columns a–h, rows 1–8 (1 at the top) ----
+  for (var n = 0; n < 8; n++) {
+    var rk = document.createElement('div'); rk.textContent = n + 1; document.getElementById('ranks').appendChild(rk);
+    var fl = document.createElement('div'); fl.textContent = 'abcdefgh'[n]; document.getElementById('files').appendChild(fl);
   }
 
   // ---- Build the board ----
@@ -227,7 +190,7 @@
     b.className = 'cell';
     b.dataset.i = i;
     b.setAttribute('aria-label', 'Row ' + (Math.floor(i / 8) + 1) + ', column ' + (i % 8 + 1));
-    b.innerHTML = '<div class="chest"><div class="lid"></div><div class="bod"></div><div class="lock"></div><div class="gem">' + GEM + '</div></div>';
+    b.innerHTML = '<div class="cup"><div class="gem">' + GEM + '</div><div class="shell"><div class="handle"></div><div class="body"></div><div class="rim"></div></div></div>';
     board.appendChild(b);
     cells.push(b);
   }
@@ -241,8 +204,8 @@
   // ---- Render ----
   function render() {
     for (var i = 0; i < 64; i++) {
-      var c = cells[i], chest = c.firstChild;
-      chest.className = 'chest ' + (gold[i] ? 'gold' : 'wood');
+      var c = cells[i], cup = c.firstChild;
+      cup.className = 'cup ' + (gold[i] ? 'r' : 'l');
       var isOpen = (phase === 'setup' && i === key) || !!opened[i];
       var hasGem = i === key && (phase === 'setup' || !!opened[i]);
       c.classList.toggle('open', isOpen);
@@ -250,7 +213,6 @@
       c.classList.toggle('empty', !!opened[i] && i !== key);
     }
     tray.classList.toggle('gone', !(phase === 'setup' && key === null));
-    lampsEl.classList.toggle('show', phase === 'locking' || phase === 'cover' || phase === 'guess' || phase === 'reveal');
     var wantKey = phase === 'setup' && key !== null;
     if (wantKey !== keyBtn.classList.contains('show')) keyBtn.classList.toggle('show', wantKey);
   }
@@ -264,8 +226,7 @@
   function newGame() {
     gold = [];
     for (var i = 0; i < 64; i++) gold.push(Math.random() < 0.5);
-    key = null; phase = 'setup'; opened = {}; clearLamps();
-    cover.classList.remove('show');
+    key = null; phase = 'setup'; opened = {};
     setStatus('');
     render();
   }
@@ -274,11 +235,10 @@
   function lockIn() {
     if (phase !== 'setup' || key === null) return;
     phase = 'locking';
-    render();                       // the lid closes on the diamond...
-    var t = pointer() ^ key;        // ...and, while all eyes are on it, one chest swaps.
-    gold[t] = !gold[t];
-    render();
-    setTimeout(function () { phase = 'cover'; cover.classList.add('show'); }, 900);
+    render();                       // the cup drops over the diamond...
+    var t = pointer() ^ key;        // ...and, while all eyes are on it, one cup turns its handle.
+    setTimeout(function () { gold[t] = !gold[t]; render(); }, 150);
+    setTimeout(function () { phase = 'guess'; render(); }, 450);
   }
 
   function guess(i) {
@@ -292,12 +252,6 @@
     }
   }
 
-  cover.addEventListener('click', function () {
-    if (phase !== 'cover') return;
-    cover.classList.remove('show');
-    phase = 'guess'; setStatus('');
-    render();
-  });
   keyBtn.addEventListener('click', lockIn);
   restartBtn.addEventListener('click', newGame);
 
@@ -313,7 +267,7 @@
     return null;
   }
   function moveGhost(x, y) {
-    ghost.style.transform = 'translate(' + (x - 18) + 'px,' + (y - 36) + 'px)';
+    ghost.style.transform = 'translate(' + (x - 14) + 'px,' + (y - 44) + 'px)';
   }
   function setHover(c) {
     if (hoverCell === c) return;
@@ -362,7 +316,7 @@
       var c = e ? cellAt(e.clientX, e.clientY) : null;
       key = c ? +c.dataset.i : null;
     } else if (d.from === 'chest') {
-      key = null;                     // a simple tap on the open chest takes the diamond back
+      key = null;                     // a simple tap on the lifted cup takes the diamond back
     }
     render();
   }

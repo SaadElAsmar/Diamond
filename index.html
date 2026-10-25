@@ -52,20 +52,14 @@
     position: relative; cursor: pointer; background: #2d5b45; border-radius: 2px;
   }
 
-  /* Cup (upside down). Handle right = 1, handle left = 0 */
-  .cup {
+  /* Pieces: 4 designs, each with two almost identical versions (bit 1 / bit 0) */
+  .piece {
     position: relative; width: 34px; height: 34px; pointer-events: none;
     transform: scale(var(--k, 1)); transition: transform .15s;
   }
   .shell { position: absolute; inset: 0; transition: transform .35s ease; z-index: 2;
            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35)); }
-  .body  { position: absolute; left: 7px; top: 3px; width: 20px; height: 24px;
-           clip-path: polygon(15% 0, 85% 0, 100% 100%, 0 100%);
-           background: linear-gradient(90deg, #b8692e 0%, #f0ac6a 38%, #d4883f 62%, #9a5420 100%); }
-  .rim   { position: absolute; left: 4px; top: 25px; width: 26px; height: 5px; border-radius: 2px; background: #9a5420; }
-  .handle { position: absolute; top: 8px; width: 9px; height: 12px; border: 3px solid #d08443; border-radius: 50%; }
-  .cup.l .handle { left: 1px;  border-right-color: transparent; }
-  .cup.r .handle { right: 1px; border-left-color: transparent; }
+  .shell svg { width: 100%; height: 100%; display: block; }
   .gem  { position: absolute; left: 9px; top: 8px; width: 16px; height: 21px; z-index: 1;
           opacity: 0; transition: opacity .25s; }
 
@@ -76,7 +70,7 @@
     background: radial-gradient(circle, rgba(255,214,110,0.8), rgba(255,214,110,0) 65%);
   }
   .cell.empty::before { background: radial-gradient(circle, rgba(0,0,0,0.25), rgba(0,0,0,0) 65%); }
-  .cell.hover .cup { transform: scale(calc(var(--k, 1) * 1.15)); }
+  .cell.hover .piece { transform: scale(calc(var(--k, 1) * 1.15)); }
 
   /* Diamond tray + key */
   .tray { height: 64px; display: flex; align-items: center; justify-content: center; gap: 36px; }
@@ -126,7 +120,7 @@
   <div class="frame"><div class="ranks" id="ranks"></div><div class="board" id="board"></div><div class="files" id="files"></div></div>
   <div class="status" id="status"></div>
   <div class="tray">
-    <div class="diamond" id="tray" role="button" aria-label="Queen: drag it under a cup"></div>
+    <div class="diamond" id="tray" role="button" aria-label="Queen: drag it under a piece"></div>
     <button class="keybtn" id="keyBtn" type="button" aria-label="Hide the queen">
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2a1a08" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="7" cy="12" r="4"/><circle cx="7" cy="12" r="1.2" fill="#2a1a08"/>
@@ -135,6 +129,11 @@
     </button>
   </div>
   <div class="bottom">
+    <button class="round" id="designBtn" type="button" aria-label="Change design">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8a611a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polygon points="12,3 21,8 12,13 3,8"/><polyline points="3,12.5 12,17.5 21,12.5"/><polyline points="3,17 12,22 21,17"/>
+      </svg>
+    </button>
     <button class="round" id="restart" type="button" aria-label="Restart">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8a611a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M4 12a8 8 0 1 0 2.4-5.7"/><polyline points="4,3 4,8 9,8"/>
@@ -163,14 +162,44 @@
   var ghost = document.getElementById('ghost');
   tray.innerHTML = GEM; ghost.innerHTML = GEM;
 
+
+  // ---- Designs: draw(on) returns the SVG. on = bit 1, off = bit 0 ----
+  var DESIGNS = {
+    cups: { name: 'Cups', draw: function (on) {
+      return '<svg viewBox="0 0 40 40"><g transform="translate(20,21)">' +
+        (on ? '<path d="M11 -8 Q20 -6 18 2 Q16 7 11 5" stroke="#d08443" stroke-width="3" fill="none"/>'
+            : '<path d="M-11 -8 Q-20 -6 -18 2 Q-16 7 -11 5" stroke="#d08443" stroke-width="3" fill="none"/>') +
+        '<path d="M-9 -14 L9 -14 L13 11 L-13 11 Z" fill="#d4883f"/><path d="M-4 -14 L-1 -14 L-1 11 L-6 11 Z" fill="#f0ac6a"/>' +
+        '<rect x="-16" y="9" width="32" height="5" rx="2" fill="#9a5420"/></g></svg>'; } },
+    hats: { name: 'Magic hats', draw: function (on) {
+      return '<svg viewBox="0 0 40 40"><g transform="translate(20,21)">' +
+        '<rect x="-11" y="-17" width="22" height="25" rx="2" fill="#222222"/><rect x="-11" y="2" width="22" height="4" fill="#c0392b"/>' +
+        (on ? '<circle cx="6" cy="4" r="1.5" fill="#ffffff"/>' : '') +
+        '<ellipse cx="0" cy="9" rx="18" ry="5" fill="#222222"/></g></svg>'; } },
+    envelopes: { name: 'Envelopes', draw: function (on) {
+      return '<svg viewBox="0 0 40 40"><g transform="translate(20,20)">' +
+        '<rect x="-17" y="-12" width="34" height="24" rx="2" fill="#efe4c9"/><path d="M-17 -12 L0 3 L17 -12" stroke="#b9a582" stroke-width="1.5" fill="none"/>' +
+        (on ? '<path d="M0 8 L-4.5 3 A2.5 2.5 0 0 1 0 0 A2.5 2.5 0 0 1 4.5 3 Z" fill="#c0392b"/>'
+            : '<circle cx="0" cy="3" r="4" fill="#c0392b"/>') + '</g></svg>'; } },
+    pots: { name: 'Flower pots', draw: function (on) {
+      return '<svg viewBox="0 0 40 40"><g transform="translate(20,24)">' +
+        '<path d="M0 -8 L0 -20" stroke="#5cc27a" stroke-width="2" fill="none"/>' +
+        '<ellipse cx="-5" cy="-16" rx="5" ry="2.5" transform="rotate(-25 -5 -16)" fill="#5cc27a"/>' +
+        (on ? '<ellipse cx="5" cy="-12" rx="5" ry="2.5" transform="rotate(25 5 -12)" fill="#5cc27a"/>' : '') +
+        '<path d="M-12 -6 L12 -6 L9 13 L-9 13 Z" fill="#c4622d"/><rect x="-14" y="-10" width="28" height="6" rx="2" fill="#a9501f"/></g></svg>'; } }
+  };
+  var ORDER = ['cups', 'hats', 'envelopes', 'pots'];
+  var design = 'cups';
+  try { var saved = localStorage.getItem('design'); if (DESIGNS[saved]) design = saved; } catch (e) {}
+
   // ---- State ----
-  var gold = [];          // true = handle right (bit 1), false = handle left (bit 0)
+  var gold = [];          // true = bit 1 version, false = bit 0 version of the piece
   var key = null;         // index 0..63 of the cup hiding the diamond
   var phase = 'setup';    // setup | locking | guess | reveal
   var opened = {};        // cups lifted during the guess
   var cells = [];
 
-  // The board "points" to the XOR of the indices of all cups with the handle on the right.
+  // The board "points" to the XOR of the indices of all pieces in their "1" version.
   function pointer() {
     var x = 0;
     for (var i = 0; i < 64; i++) if (gold[i]) x ^= i;
@@ -190,7 +219,7 @@
     b.className = 'cell';
     b.dataset.i = i;
     b.setAttribute('aria-label', 'Row ' + (Math.floor(i / 8) + 1) + ', column ' + (i % 8 + 1));
-    b.innerHTML = '<div class="cup"><div class="gem">' + GEM + '</div><div class="shell"><div class="handle"></div><div class="body"></div><div class="rim"></div></div></div>';
+    b.innerHTML = '<div class="piece"><div class="gem">' + GEM + '</div><div class="shell"></div></div>';
     board.appendChild(b);
     cells.push(b);
   }
@@ -204,8 +233,8 @@
   // ---- Render ----
   function render() {
     for (var i = 0; i < 64; i++) {
-      var c = cells[i], cup = c.firstChild;
-      cup.className = 'cup ' + (gold[i] ? 'r' : 'l');
+      var c = cells[i], shell = c.firstChild.lastChild, k = design + (gold[i] ? 1 : 0);
+      if (shell.dataset.k !== k) { shell.innerHTML = DESIGNS[design].draw(gold[i]); shell.dataset.k = k; }
       var isOpen = (phase === 'setup' && i === key) || !!opened[i];
       var hasGem = i === key && (phase === 'setup' || !!opened[i]);
       c.classList.toggle('open', isOpen);
@@ -235,8 +264,8 @@
   function lockIn() {
     if (phase !== 'setup' || key === null) return;
     phase = 'locking';
-    render();                       // the cup drops over the diamond...
-    var t = pointer() ^ key;        // ...and, while all eyes are on it, one cup turns its handle.
+    render();                       // the piece drops over the queen...
+    var t = pointer() ^ key;        // ...and, while all eyes are on it, one piece quietly switches version.
     setTimeout(function () { gold[t] = !gold[t]; render(); }, 150);
     setTimeout(function () { phase = 'guess'; render(); }, 450);
   }
@@ -254,6 +283,15 @@
 
   keyBtn.addEventListener('click', lockIn);
   restartBtn.addEventListener('click', newGame);
+  document.getElementById('designBtn').addEventListener('click', function () {
+    design = ORDER[(ORDER.indexOf(design) + 1) % ORDER.length];
+    try { localStorage.setItem('design', design); } catch (e) {}
+    render();
+    if (phase === 'setup') {
+      setStatus(DESIGNS[design].name);
+      clearTimeout(window.__dt); window.__dt = setTimeout(function () { if (phase === 'setup') setStatus(''); }, 1200);
+    }
+  });
 
   // ---- Taps and drags ----
   var drag = null, suppressUntil = 0, hoverCell = null;

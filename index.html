@@ -289,7 +289,7 @@
 
   function guess(i) {
     if (phase !== 'guess' || opened[i]) return;
-    opened[i] = true; lastGuess = i;
+    opened[i] = true; lastGuess = i; clearMarks();
     if (i === key) {
       phase = 'reveal'; setStatus('Found it!'); render();
     } else {

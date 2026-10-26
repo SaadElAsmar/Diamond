@@ -45,6 +45,9 @@
   .ranks, .files { display: grid; gap: 2px; font-size: 12px; font-weight: 700; color: #5a3d16;
                    align-items: center; justify-items: center; }
   .ranks { grid-template-rows: repeat(8, 1fr); padding: 2px 0; }
+  .lbl { border: 0; background: transparent; padding: 0; width: 100%; height: 100%; font: inherit; color: inherit;
+         cursor: pointer; transition: opacity .15s; }
+  .lbl.dim { opacity: 0.25; }
   .files { grid-template-columns: repeat(8, 1fr); padding: 0 2px; grid-column: 2; }
   .cell {
     border: 0; background: transparent; padding: 0; margin: 0; aspect-ratio: 1;
@@ -157,7 +160,7 @@
 <div class="namebox" id="nameBox" role="dialog" aria-modal="true" aria-labelledby="nameLabel">
   <div class="card">
     <label id="nameLabel" for="nameInput">Your name</label>
-    <input id="nameInput" type="text" maxlength="20" placeholder="" autocomplete="nickname">
+    <input id="nameInput" type="text" maxlength="20" placeholder="e.g. Joud" autocomplete="nickname">
     <div class="row"><button class="no" id="nameCancel" type="button">Cancel</button><button class="ok" id="nameOk" type="button">Share</button></div>
   </div>
 </div>
@@ -216,9 +219,13 @@
 
   // ---- Labels like a chessboard: columns a–h, rows 1–8 (1 at the top) ----
   for (var n = 0; n < 8; n++) {
-    var rk = document.createElement('div'); rk.textContent = n + 1; document.getElementById('ranks').appendChild(rk);
-    var fl = document.createElement('div'); fl.textContent = 'abcdefgh'[n]; document.getElementById('files').appendChild(fl);
+    var rk = document.createElement('button'); rk.type = 'button'; rk.className = 'lbl'; rk.textContent = n + 1;
+    var fl = document.createElement('button'); fl.type = 'button'; fl.className = 'lbl'; fl.textContent = 'abcdefgh'[n];
+    [rk, fl].forEach(function (l) { l.addEventListener('click', function () { l.classList.toggle('dim'); }); });
+    document.getElementById('ranks').appendChild(rk); document.getElementById('files').appendChild(fl);
   }
+
+  function clearMarks() { Array.prototype.forEach.call(document.querySelectorAll('.lbl.dim'), function (l) { l.classList.remove('dim'); }); }
 
   // ---- Build the board ----
   for (var i = 0; i < 64; i++) {
@@ -265,7 +272,7 @@
   function newGame() {
     gold = [];
     for (var i = 0; i < 64; i++) gold.push(Math.random() < 0.5);
-    key = null; phase = 'setup'; opened = {};
+    key = null; phase = 'setup'; opened = {}; clearMarks();
     setStatus('');
     render();
   }
@@ -427,7 +434,7 @@
     var m = location.hash.match(/^#b=([A-Za-z0-9_-]{11})$/) || location.search.match(/[?&]b=([A-Za-z0-9_-]{11})/);
     if (!m) return false;
     try { gold = decodeBoard(m[1]); } catch (e) { return false; }
-    role = 'guest'; key = pointer(); phase = 'guess'; opened = {}; lastGuess = null;
+    role = 'guest'; key = pointer(); phase = 'guess'; opened = {}; lastGuess = null; clearMarks();
     fromName = '';
     var nm = location.search.match(/[?&]n=([^&#]*)/);
     if (nm && !location.hash) { try { fromName = decodeURIComponent(nm[1]).trim().slice(0, 20); } catch (e) {} }

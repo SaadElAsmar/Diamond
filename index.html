@@ -127,6 +127,12 @@
     </button>
   </div>
   <div class="bottom">
+    <button class="round" id="shareBtn" type="button" aria-label="Share" style="display:none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8a611a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/>
+        <line x1="8.2" y1="10.8" x2="15.8" y2="6.2"/><line x1="8.2" y1="13.2" x2="15.8" y2="17.8"/>
+      </svg>
+    </button>
     <button class="round" id="restart" type="button" aria-label="Restart">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8a611a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M4 12a8 8 0 1 0 2.4-5.7"/><polyline points="4,3 4,8 9,8"/>
@@ -226,6 +232,7 @@
       c.classList.toggle('empty', !!opened[i] && i !== key);
     }
     tray.classList.toggle('gone', !(phase === 'setup' && key === null));
+    if (shareBtn) shareBtn.style.display = ((role === 'host' && phase === 'guess') || (role === 'guest' && phase === 'reveal')) ? 'flex' : 'none';
     var wantKey = phase === 'setup' && key !== null;
     if (wantKey !== keyBtn.classList.contains('show')) keyBtn.classList.toggle('show', wantKey);
   }
@@ -256,7 +263,7 @@
 
   function guess(i) {
     if (phase !== 'guess' || opened[i]) return;
-    opened[i] = true;
+    opened[i] = true; lastGuess = i;
     if (i === key) {
       phase = 'reveal'; setStatus('Found it!'); render();
     } else {
@@ -266,7 +273,66 @@
   }
 
   keyBtn.addEventListener('click', lockIn);
-  restartBtn.addEventListener('click', newGame);
+  restartBtn.addEventListener('click', function () {
+    role = 'host';
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+    newGame();
+  });
+
+  // ---- Share a board by link (the link holds only the 64 seals, never the ring's place) ----
+  var role = 'host', lastGuess = null;
+  var shareBtn = document.getElementById('shareBtn');
+  function sq(i) { return 'abcdefgh'[i % 8] + (Math.floor(i / 8) + 1); }
+
+  function encodeBoard() {
+    var str = '';
+    for (var j = 0; j < 8; j++) {
+      var byte = 0;
+      for (var b = 0; b < 8; b++) if (gold[j * 8 + b]) byte |= (1 << b);
+      str += String.fromCharCode(byte);
+    }
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function decodeBoard(code) {
+    var b64 = code.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    var str = atob(b64);
+    if (str.length !== 8) throw new Error('bad board');
+    var g = [];
+    for (var j = 0; j < 8; j++) for (var b = 0; b < 8; b++) g.push(((str.charCodeAt(j) >> b) & 1) === 1);
+    return g;
+  }
+
+  function shareText(text, url) {
+    if (navigator.share) {
+      navigator.share(url ? { text: text, url: url } : { text: text }).catch(function () {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(url ? text + ' ' + url : text).then(function () { setStatus('Copied!', 'Paste it in a message'); });
+    } else {
+      window.prompt('Copy this:', url ? text + ' ' + url : text);
+    }
+  }
+
+  shareBtn.addEventListener('click', function () {
+    if (role === 'host' && phase === 'guess') {
+      var url = location.origin + location.pathname + '#b=' + encodeBoard();
+      shareText('I hid a ring in one of these envelopes 💍 You have one try. Can you find it?', url);
+    } else if (role === 'guest' && phase === 'reveal') {
+      shareText(lastGuess === key
+        ? 'I opened ' + sq(lastGuess) + ' and found the ring! 💍✅'
+        : 'I opened ' + sq(lastGuess) + '… empty ✉️❌ The ring was in ' + sq(key) + '.');
+    }
+  });
+
+  function loadFromLink() {
+    var m = location.hash.match(/^#b=([A-Za-z0-9_-]{11})$/);
+    if (!m) return false;
+    try { gold = decodeBoard(m[1]); } catch (e) { return false; }
+    role = 'guest'; key = pointer(); phase = 'guess'; opened = {}; lastGuess = null;
+    setStatus('Find the ring 💍', 'One envelope, one try');
+    render();
+    return true;
+  }
 
   // ---- Taps and drags ----
   var drag = null, suppressUntil = 0, hoverCell = null;
@@ -346,7 +412,7 @@
   });
 
   // ---- Start ----
-  newGame();
+  if (!loadFromLink()) newGame();
   fit();
 
   if ('serviceWorker' in navigator) {

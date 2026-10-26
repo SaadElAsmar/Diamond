@@ -1,6 +1,6 @@
 // Offline support, "network first": when online you always get the newest
 // version from GitHub; when offline the saved copy is used.
-var CACHE = 'diamond-v23';
+var CACHE = 'diamond-v24';
 var FILES = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
@@ -17,7 +17,7 @@ self.addEventListener('activate', function (e) {
 });
 
 self.addEventListener('fetch', function (e) {
-  if (e.request.method !== 'GET') return;
+  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;  // scores go straight to the network
   e.respondWith(
     fetch(e.request, { cache: 'no-store' }).then(function (res) {
       var copy = res.clone();

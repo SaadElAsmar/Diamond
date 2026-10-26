@@ -105,6 +105,9 @@
   }
 
   .status small { display: block; font-size: 14px; font-weight: 400; opacity: .75; margin-top: 2px; }
+  .tries { font-size: 15px; text-align: center; line-height: 1.7; margin-top: -6px; }
+  .tries:empty { display: none; }
+  .tries .more { opacity: .6; font-size: 13px; }
 
   .ghost {
     position: fixed; left: 0; top: 0; width: 34px; height: 34px; z-index: 50; pointer-events: none; display: none;
@@ -132,6 +135,7 @@
 <div class="app">
   <div class="frame"><div class="ranks" id="ranks"></div><div class="board" id="board"></div><div class="files" id="files"></div></div>
   <div class="status" id="status"></div>
+  <div class="tries" id="tries"></div>
   <div class="tray">
     <div class="diamond" id="tray" role="button" aria-label="Ring: drag it into an envelope"></div>
     <button class="keybtn" id="keyBtn" type="button" aria-label="Seal the envelope">
@@ -289,8 +293,12 @@
 
   function guess(i) {
     if (phase !== 'guess' || opened[i]) return;
+    if (role === 'guest' && API && !myName) { askName('Open', function () { guess(i); }); return; }
     opened[i] = true; lastGuess = i; clearMarks();
-    if (role === 'guest' && currentCode) saveTry(currentCode, i);
+    if (role === 'guest' && currentCode) {
+      saveTry(currentCode, i);
+      api({ action: 'try', p: currentCode, n: fromName, g: myName, o: sq(i), f: i === key ? 1 : 0, d: deviceId }).catch(function () {});
+    }
     if (i === key) {
       phase = 'reveal'; setStatus('Found it!'); render();
     } else {
@@ -301,7 +309,7 @@
 
   keyBtn.addEventListener('click', lockIn);
   restartBtn.addEventListener('click', function () {
-    role = 'host'; fromName = ''; currentCode = '';
+    role = 'host'; fromName = ''; currentCode = ''; triesEl.innerHTML = '';
     try { history.replaceState(null, '', location.pathname); } catch (e) {}
     newGame();
   });
@@ -342,7 +350,7 @@
 
   shareBtn.addEventListener('click', function () {
     if (role === 'host' && phase === 'guess') {
-      if (!myName) { nameInput.value = ''; nameBox.classList.add('show'); setTimeout(function () { nameInput.focus(); }, 50); return; }
+      if (!myName) { askName('Share', hostShare); return; }
       hostShare();
     } else if (role === 'guest' && phase === 'reveal') {
       var text = lastGuess === key
@@ -417,6 +425,8 @@
   try { myName = localStorage.getItem('name') || ''; } catch (e) {}
   var nameBox = document.getElementById('nameBox'), nameInput = document.getElementById('nameInput');
   function hostShare() {
+    var code = encodeBoard(), mine = readMine();
+    if (mine.indexOf(code) < 0) { mine.push(code); if (mine.length > 100) mine.shift(); try { localStorage.setItem('mine', JSON.stringify(mine)); } catch (e) {} }
     var url = location.origin + location.pathname + '?b=' + encodeBoard() + '&n=' + encodeURIComponent(myName);
     shareText(myName + ' hid a ring in one of these envelopes 💍 You have one try. Can you find it?', url);
   }
@@ -426,10 +436,51 @@
     myName = v;
     try { localStorage.setItem('name', myName); } catch (e) {}
     nameBox.classList.remove('show');
-    hostShare();
+    var next = afterName; afterName = null;
+    if (next) next();
   });
-  document.getElementById('nameCancel').addEventListener('click', function () { nameBox.classList.remove('show'); });
+  document.getElementById('nameCancel').addEventListener('click', function () { afterName = null; nameBox.classList.remove('show'); });
   nameInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('nameOk').click(); });
+
+  var afterName = null;
+  function askName(buttonText, next) {
+    afterName = next;
+    document.getElementById('nameOk').textContent = buttonText;
+    nameInput.value = '';
+    nameBox.classList.add('show');
+    setTimeout(function () { nameInput.focus(); }, 50);
+  }
+
+  // ---- Scoreboard (Apps Script + Google Sheet). Leave API empty to switch scores off ----
+  var API = 'https://script.google.com/macros/s/AKfycbwONpub0wZdHNX8RvqBLQblq_bIGSXV6OzPfxppxbXSK9DbvzJTBIViPTw9x4EMkovH0g/exec';
+  var deviceId = '';
+  try { deviceId = localStorage.getItem('dev') || ''; if (!deviceId) { deviceId = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('dev', deviceId); } } catch (e) {}
+  function api(q) {
+    if (!API) return Promise.reject(new Error('no scoreboard'));
+    var qs = Object.keys(q).map(function (k) { return k + '=' + encodeURIComponent(q[k]); }).join('&');
+    return fetch(API + '?' + qs).then(function (r) { return r.json(); });
+  }
+  function readMine() { try { return JSON.parse(localStorage.getItem('mine') || '[]'); } catch (e) { return []; } }
+  var triesEl = document.getElementById('tries');
+
+  // The owner opens their own link: show the ring and who tried
+  function showOwner() {
+    role = 'owner'; phase = 'reveal'; opened = {}; opened[key] = true; lastGuess = null;
+    setStatus('Your puzzle 💍', API ? 'Loading tries…' : 'Scores are not switched on');
+    render();
+    api({ action: 'stats', p: currentCode }).then(function (r) {
+      if (!r || !r.ok) throw new Error('no stats');
+      setStatus('Your puzzle 💍', r.tries === 0 ? 'Nobody tried yet' : r.tries + (r.tries === 1 ? ' try' : ' tries') + ' · ' + r.found + ' found 😍');
+      triesEl.innerHTML = '';
+      var list = r.list.slice().reverse();
+      list.slice(0, 10).forEach(function (t) {
+        var d = document.createElement('div');
+        d.textContent = (t.player || 'Someone') + ' · ' + t.opened + ' ' + (t.found ? '😍' : '❌');
+        triesEl.appendChild(d);
+      });
+      if (list.length > 10) { var m = document.createElement('div'); m.className = 'more'; m.textContent = '+ ' + (list.length - 10) + ' more'; triesEl.appendChild(m); }
+    }).catch(function () { if (API) setStatus('Your puzzle 💍', 'Could not load tries (offline?)'); });
+  }
 
   // ---- One try per puzzle: this phone remembers the puzzles it already opened ----
   var currentCode = '';
@@ -450,6 +501,8 @@
     var nm = location.search.match(/[?&]n=([^&#]*)/);
     if (nm && !location.hash) { try { fromName = decodeURIComponent(nm[1]).trim().slice(0, 20); } catch (e) {} }
     currentCode = m[1];
+    triesEl.innerHTML = '';
+    if (readMine().indexOf(currentCode) >= 0) { showOwner(); return true; }
     var before = readTries()[currentCode];
     if (typeof before === 'number' && before >= 0 && before < 64) {
       lastGuess = before; opened[before] = true; opened[key] = true; phase = 'reveal';

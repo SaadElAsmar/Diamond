@@ -126,6 +126,22 @@
   .namebox .ok { border: 0; background: linear-gradient(180deg, #f6dc94, #d4a441); color: #2a1a08; }
   .namebox .no { border: 1px solid #c9a46a; background: #fff; color: var(--ink); }
 
+  .scorecard { max-height: 82vh; padding: 0 !important; overflow: hidden; gap: 0 !important; }
+  .scorehead { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 10px; }
+  .scorehead b { font-size: 19px; }
+  .scorehead small { display: block; font-size: 13px; opacity: .7; margin-top: 2px; }
+  .namebox .xbtn { width: 36px; height: 36px; font-weight: 400; border-radius: 50%; border: 1px solid #c9a46a; background: #fff; font-size: 18px;
+          line-height: 1; cursor: pointer; color: var(--ink); flex: none; }
+  .scorebody { overflow-y: auto; padding: 0 12px 14px; }
+  .scoretable { width: 100%; border-collapse: collapse; font-size: 15px; }
+  .scoretable th { text-align: left; font-size: 12px; font-weight: 700; letter-spacing: .3px; color: #8a611a;
+                   padding: 6px 6px; border-bottom: 2px solid #e2cf9f; position: sticky; top: 0; background: #fdf9ef; }
+  .scoretable td { padding: 9px 6px; border-bottom: 1px solid #efe4c9; }
+  .scoretable tr.win td { background: #fbefc4; }
+  .scoretable td.n { color: #8a7a5c; width: 22px; }
+  .scoretable td.t { color: #8a7a5c; font-size: 13px; white-space: nowrap; }
+  .scoreempty { text-align: center; padding: 24px 0 30px; opacity: .7; }
+
   @media (prefers-reduced-motion: reduce) {
     .keybtn.show, .keybtn svg { animation: none; }
   }
@@ -152,6 +168,11 @@
         <line x1="8.2" y1="10.8" x2="15.8" y2="6.2"/><line x1="8.2" y1="13.2" x2="15.8" y2="17.8"/>
       </svg>
     </button>
+    <button class="round" id="scoreBtn" type="button" aria-label="Scoreboard" style="display:none">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8a611a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3a3 3 0 0 1-3 4"/><path d="M7 5H4a3 3 0 0 0 3 4"/>
+      </svg>
+    </button>
     <button class="round" id="restart" type="button" aria-label="Restart">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8a611a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M4 12a8 8 0 1 0 2.4-5.7"/><polyline points="4,3 4,8 9,8"/>
@@ -161,6 +182,13 @@
 </div>
 
 <div class="ghost" id="ghost"></div>
+<div class="namebox" id="tableBox" role="dialog" aria-modal="true" aria-labelledby="tableTitle">
+  <div class="card scorecard">
+    <div class="scorehead"><div><b id="tableTitle">Scoreboard 💍</b><small id="tableSum"></small></div>
+      <button class="xbtn" id="tableClose" type="button" aria-label="Close">✕</button></div>
+    <div class="scorebody" id="tableBody"></div>
+  </div>
+</div>
 <div class="namebox" id="nameBox" role="dialog" aria-modal="true" aria-labelledby="nameLabel">
   <div class="card">
     <label id="nameLabel" for="nameInput">Your name</label>
@@ -262,6 +290,7 @@
       c.classList.toggle('empty', !!opened[i] && i !== key);
     }
     tray.classList.toggle('gone', !(phase === 'setup' && key === null));
+    var sb = document.getElementById('scoreBtn'); if (sb) sb.style.display = role === 'owner' ? 'flex' : 'none';
     if (shareBtn) shareBtn.style.display = ((role === 'host' && phase === 'guess') || (role === 'guest' && phase === 'reveal')) ? 'flex' : 'none';
     var wantKey = phase === 'setup' && key !== null;
     if (wantKey !== keyBtn.classList.contains('show')) keyBtn.classList.toggle('show', wantKey);
@@ -464,23 +493,51 @@
   var triesEl = document.getElementById('tries');
 
   // The owner opens their own link: show the ring and who tried
+  function summary(r) {
+    if (!r.tries) return 'Nobody tried yet';
+    return r.tries + (r.tries === 1 ? ' try' : ' tries') + ' · ' + r.found + ' found';
+  }
   function showOwner() {
     role = 'owner'; phase = 'reveal'; opened = {}; opened[key] = true; lastGuess = null;
     setStatus('Your puzzle 💍', API ? 'Loading tries…' : 'Scores are not switched on');
     render();
     api({ action: 'stats', p: currentCode }).then(function (r) {
       if (!r || !r.ok) throw new Error('no stats');
-      setStatus('Your puzzle 💍', r.tries === 0 ? 'Nobody tried yet' : r.tries + (r.tries === 1 ? ' try' : ' tries') + ' · ' + r.found + ' found 😍');
-      triesEl.innerHTML = '';
-      var list = r.list.slice().reverse();
-      list.slice(0, 10).forEach(function (t) {
-        var d = document.createElement('div');
-        d.textContent = (t.player || 'Someone') + ' · ' + t.opened + ' ' + (t.found ? '😍' : '❌');
-        triesEl.appendChild(d);
-      });
-      if (list.length > 10) { var m = document.createElement('div'); m.className = 'more'; m.textContent = '+ ' + (list.length - 10) + ' more'; triesEl.appendChild(m); }
+      setStatus('Your puzzle 💍', summary(r));
     }).catch(function () { if (API) setStatus('Your puzzle 💍', 'Could not load tries (offline?)'); });
   }
+
+  // ---- Scoreboard table ----
+  var tableBox = document.getElementById('tableBox'), tableBody = document.getElementById('tableBody'), tableSum = document.getElementById('tableSum');
+  function when(t) {
+    var d = new Date(t); if (isNaN(d)) return '';
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
+  function openTable() {
+    tableSum.textContent = 'Loading…'; tableBody.innerHTML = '';
+    tableBox.classList.add('show');
+    api({ action: 'stats', p: currentCode }).then(function (r) {
+      if (!r || !r.ok) throw new Error('no stats');
+      var first = r.list.filter(function (t) { return t.found; })[0];
+      tableSum.textContent = summary(r) + (first ? ' · first: ' + (first.player || 'Someone') : '');
+      setStatus('Your puzzle 💍', summary(r));
+      if (!r.list.length) { tableBody.innerHTML = '<div class="scoreempty">Nobody tried yet. Share your link!</div>'; return; }
+      var tb = document.createElement('table'); tb.className = 'scoretable';
+      tb.innerHTML = '<thead><tr><th>#</th><th>Name</th><th>Opened</th><th></th><th>Time</th></tr></thead>';
+      var body = document.createElement('tbody');
+      r.list.forEach(function (t, n) {
+        var tr = document.createElement('tr'); if (t.found) tr.className = 'win';
+        [[String(n + 1), 'n'], [t.player || 'Someone', ''], [t.opened, ''], [t.found ? '✅' : '❌', ''], [when(t.time), 't']].forEach(function (c) {
+          var td = document.createElement('td'); td.textContent = c[0]; if (c[1]) td.className = c[1]; tr.appendChild(td);
+        });
+        body.appendChild(tr);
+      });
+      tb.appendChild(body); tableBody.appendChild(tb);
+    }).catch(function () { tableSum.textContent = 'Could not load tries (offline?)'; });
+  }
+  document.getElementById('scoreBtn').addEventListener('click', openTable);
+  document.getElementById('tableClose').addEventListener('click', function () { tableBox.classList.remove('show'); });
+  tableBox.addEventListener('click', function (e) { if (e.target === tableBox) tableBox.classList.remove('show'); });
 
   // ---- One try per puzzle: this phone remembers the puzzles it already opened ----
   var currentCode = '';

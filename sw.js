@@ -1,6 +1,6 @@
 // Offline support, "network first": when online you always get the newest
 // version from GitHub; when offline the saved copy is used.
-var CACHE = 'diamond-v17';
+var CACHE = 'diamond-v19';
 var FILES = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
@@ -24,7 +24,7 @@ self.addEventListener('fetch', function (e) {
       caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
       return res;
     }).catch(function () {
-      return caches.match(e.request).then(function (r) { return r || caches.match('index.html'); });
+      return caches.match(e.request, { ignoreSearch: true }).then(function (r) { return r || caches.match('index.html'); });
     })
   );
 });

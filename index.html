@@ -318,11 +318,69 @@
       var url = location.origin + location.pathname + '#b=' + encodeBoard();
       shareText('I hid a ring in one of these envelopes 💍 You have one try. Can you find it?', url);
     } else if (role === 'guest' && phase === 'reveal') {
-      shareText(lastGuess === key
+      var text = lastGuess === key
         ? 'I opened ' + sq(lastGuess) + ' and found the ring! 💍✅'
-        : 'I opened ' + sq(lastGuess) + '… empty ✉️❌ The ring was in ' + sq(key) + '.');
+        : 'I opened ' + sq(lastGuess) + '… empty ✉️❌ The ring was in ' + sq(key) + '.';
+      shareImage(text);
     }
   });
+
+  // ---- Result picture: the real board, drawn by the app, as proof ----
+  function svgImage(svg) {
+    return new Promise(function (ok) {
+      var img = new Image();
+      img.onload = function () { ok(img); };
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '));
+    });
+  }
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+  function drawResult(text) {
+    var W = 720, H = 860, C = 76, G = 4, BX = 52, BY = 120, BW = 8 * C + 9 * G;
+    var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    var ctx = cv.getContext('2d');
+    ctx.fillStyle = '#f6efe0'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#3a2a14'; ctx.textAlign = 'center';
+    ctx.font = 'bold 30px system-ui, -apple-system, Roboto, sans-serif'; ctx.fillText(text.length > 40 ? text.slice(0, text.indexOf('…') + 1 || 40) : text, W / 2, 56);
+    if (text.length > 40) { ctx.font = '24px system-ui, -apple-system, Roboto, sans-serif'; ctx.fillText(text.slice(text.indexOf('…') + 1).trim(), W / 2, 94); }
+    ctx.fillStyle = '#c9a46a'; roundRect(ctx, BX - 40, BY - 12, BW + 52, BW + 52, 16); ctx.fill();
+    ctx.fillStyle = '#1c3d2e'; roundRect(ctx, BX, BY, BW, BW, 6); ctx.fill();
+    ctx.fillStyle = '#5a3d16'; ctx.font = 'bold 22px system-ui, -apple-system, Roboto, sans-serif';
+    for (var n = 0; n < 8; n++) {
+      ctx.fillText(String(n + 1), BX - 20, BY + G + n * (C + G) + C / 2 + 8);
+      ctx.fillText('abcdefgh'[n], BX + G + n * (C + G) + C / 2, BY + BW + 26);
+    }
+    var jobs = [];
+    for (var i = 0; i < 64; i++) (function (i) {
+      var x = BX + G + (i % 8) * (C + G), y = BY + G + Math.floor(i / 8) * (C + G);
+      var isOpen = !!opened[i], has = isOpen && i === key;
+      ctx.fillStyle = '#2d5b45'; roundRect(ctx, x, y, C, C, 4); ctx.fill();
+      if (isOpen) {
+        var gr = ctx.createRadialGradient(x + C / 2, y + C / 2, 2, x + C / 2, y + C / 2, C / 2);
+        gr.addColorStop(0, has ? 'rgba(255,214,110,0.9)' : 'rgba(0,0,0,0.3)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = gr; ctx.fillRect(x, y, C, C);
+      }
+      jobs.push(svgImage(DESIGNS[design].draw(gold[i], isOpen, has)).then(function (img) { ctx.drawImage(img, x + 6, y + 6, C - 12, C - 12); }));
+    })(i);
+    return Promise.all(jobs).then(function () { return cv; });
+  }
+  function shareImage(text) {
+    drawResult(text).then(function (cv) {
+      cv.toBlob(function (blob) {
+        var file = new File([blob], 'ring-result.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], text: text }).catch(function () {});
+        } else {
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob); a.download = 'ring-result.png';
+          document.body.appendChild(a); a.click(); a.remove();
+          setStatus('Picture saved', 'Send it with your message');
+        }
+      }, 'image/png');
+    });
+  }
 
   function loadFromLink() {
     var m = location.hash.match(/^#b=([A-Za-z0-9_-]{11})$/);

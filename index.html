@@ -371,12 +371,12 @@
       cv.toBlob(function (blob) {
         var file = new File([blob], 'ring-result.png', { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          navigator.share({ files: [file], text: text }).catch(function () {});
+          navigator.share({ files: [file] }).catch(function () {});
         } else {
           var a = document.createElement('a');
           a.href = URL.createObjectURL(blob); a.download = 'ring-result.png';
           document.body.appendChild(a); a.click(); a.remove();
-          setStatus('Picture saved', 'Send it with your message');
+          setStatus('Picture saved', 'Send it in your chat');
         }
       }, 'image/png');
     });

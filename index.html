@@ -160,7 +160,7 @@
 <div class="namebox" id="nameBox" role="dialog" aria-modal="true" aria-labelledby="nameLabel">
   <div class="card">
     <label id="nameLabel" for="nameInput">Your name</label>
-    <input id="nameInput" type="text" maxlength="20" placeholder="e.g. Joud" autocomplete="nickname">
+    <input id="nameInput" type="text" maxlength="20" autocomplete="nickname">
     <div class="row"><button class="no" id="nameCancel" type="button">Cancel</button><button class="ok" id="nameOk" type="button">Share</button></div>
   </div>
 </div>
@@ -290,6 +290,7 @@
   function guess(i) {
     if (phase !== 'guess' || opened[i]) return;
     opened[i] = true; lastGuess = i; clearMarks();
+    if (role === 'guest' && currentCode) saveTry(currentCode, i);
     if (i === key) {
       phase = 'reveal'; setStatus('Found it!'); render();
     } else {
@@ -300,7 +301,7 @@
 
   keyBtn.addEventListener('click', lockIn);
   restartBtn.addEventListener('click', function () {
-    role = 'host'; fromName = '';
+    role = 'host'; fromName = ''; currentCode = '';
     try { history.replaceState(null, '', location.pathname); } catch (e) {}
     newGame();
   });
@@ -430,6 +431,16 @@
   document.getElementById('nameCancel').addEventListener('click', function () { nameBox.classList.remove('show'); });
   nameInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('nameOk').click(); });
 
+  // ---- One try per puzzle: this phone remembers the puzzles it already opened ----
+  var currentCode = '';
+  function readTries() { try { return JSON.parse(localStorage.getItem('tries') || '{}'); } catch (e) { return {}; } }
+  function saveTry(code, i) {
+    var t = readTries(), ks = Object.keys(t);
+    if (ks.length > 300) delete t[ks[0]];
+    t[code] = i;
+    try { localStorage.setItem('tries', JSON.stringify(t)); } catch (e) {}
+  }
+
   function loadFromLink() {
     var m = location.hash.match(/^#b=([A-Za-z0-9_-]{11})$/) || location.search.match(/[?&]b=([A-Za-z0-9_-]{11})/);
     if (!m) return false;
@@ -438,6 +449,14 @@
     fromName = '';
     var nm = location.search.match(/[?&]n=([^&#]*)/);
     if (nm && !location.hash) { try { fromName = decodeURIComponent(nm[1]).trim().slice(0, 20); } catch (e) {} }
+    currentCode = m[1];
+    var before = readTries()[currentCode];
+    if (typeof before === 'number' && before >= 0 && before < 64) {
+      lastGuess = before; opened[before] = true; opened[key] = true; phase = 'reveal';
+      setStatus('You already tried this puzzle', before === key ? 'You found the ring in ' + sq(key) + ' 💍😍' : 'You opened ' + sq(before) + ', the ring was in ' + sq(key));
+      render();
+      return true;
+    }
     if (fromName) setStatus(fromName + ' hid a ring 💍', 'Find it: one envelope, one try');
     else setStatus('Find the ring 💍', 'One envelope, one try');
     render();

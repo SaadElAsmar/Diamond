@@ -254,7 +254,25 @@
     var rk = document.createElement('button'); rk.type = 'button'; rk.className = 'lbl'; rk.textContent = n + 1;
     var fl = document.createElement('button'); fl.type = 'button'; fl.className = 'lbl'; fl.textContent = 'abcdefgh'[n];
     [rk, fl].forEach(function (l) { l.addEventListener('click', function () { l.classList.toggle('dim'); }); });
+    if (n === 2) fl.addEventListener('click', function () {        // secret: double tap on "c"
+      var now = Date.now();
+      if (now - lastC < 350) { lastC = 0; autoMarks(); } else lastC = now;
+    });
     document.getElementById('ranks').appendChild(rk); document.getElementById('files').appendChild(fl);
+  }
+
+  // Fade every column and row that holds an odd number of heart seals
+  var lastC = 0;
+  function autoMarks() {
+    if (phase !== 'guess') return;
+    clearMarks();
+    var files = document.querySelectorAll('#files .lbl'), ranks = document.querySelectorAll('#ranks .lbl');
+    for (var n = 0; n < 8; n++) {
+      var col = 0, row = 0;
+      for (var m = 0; m < 8; m++) { if (gold[m * 8 + n]) col++; if (gold[n * 8 + m]) row++; }
+      if (col % 2) files[n].classList.add('dim');
+      if (row % 2) ranks[n].classList.add('dim');
+    }
   }
 
   function clearMarks() { Array.prototype.forEach.call(document.querySelectorAll('.lbl.dim'), function (l) { l.classList.remove('dim'); }); }
